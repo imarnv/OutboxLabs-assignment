@@ -39,7 +39,7 @@ On first boot the backend creates the schema (idempotent) and provisions `ETHERE
 | URL | What |
 | --- | --- |
 | http://localhost:3000 | Dashboard (Next.js; proxies `/api/*` to Express) |
-| http://localhost:4000/admin/queues | Bull Board – live queue view (also linked in the sidebar) |
+| http://localhost:4000/admin/queues | Bull Board – live queue view (also linked from the user menu) |
 | http://localhost:4000/api/health | DB / Redis / Elasticsearch health |
 
 ### Google OAuth setup
@@ -52,7 +52,7 @@ On first boot the backend creates the schema (idempotent) and provisions `ETHERE
 2. *OAuth & Permissions*: add the bot scopes `incoming-webhook` and `chat:write`.
 3. Slack only accepts HTTPS redirect URLs, so expose the frontend with a tunnel, e.g. `ngrok http 3000`, and add the redirect URL `https://<tunnel>/api/slack/callback`.
 4. In `backend/.env`, set `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET` and `SLACK_REDIRECT_URI=https://<tunnel>/api/slack/callback`.
-5. In the dashboard, click Connect Slack (bottom of the sidebar), pick a channel, and approve. A confirmation message is posted right away. Use Test to send another.
+5. In the dashboard, open the user menu (top of the sidebar), click Connect Slack, pick a channel, and approve. A confirmation message is posted right away. Use Test to send another.
 
 To see a live alert, set `MAX_EMAILS_PER_HOUR_PER_SENDER=3` and schedule 5 emails from one sender. The 4th email triggers the Slack message.
 
@@ -98,6 +98,7 @@ cd backend && npm test      # schedule planner, Redis rate limiter (incl. 50 con
 | `POST` | `/api/emails/schedule` | `{ senderId, subject, body, recipients[], startTime, delayBetweenSeconds, hourlyLimit }` |
 | `GET` | `/api/emails?status=scheduled\|sent&q=&page=&pageSize=` | List / search (Elasticsearch) |
 | `GET` | `/api/emails/counts`, `/api/emails/:id` | Sidebar counts, detail |
+| `GET` | `/api/emails/:id/attachments/:attachmentId` | Download an attachment |
 | `GET` | `/api/slack/status`, `/connect`, `/callback` | Slack OAuth v2 |
 | `POST` / `DELETE` | `/api/slack/test`, `/api/slack` | Test message, disconnect |
 
@@ -172,13 +173,14 @@ Trade-offs:
 
 ## 5. Frontend
 
-* Google login (`/login`) → dashboard. The sidebar shows the avatar, name, and email, with Logout in the user menu.
-* Scheduled and Sent tabs. Rows show *To*, a status chip (scheduled time, *Sent*, or *Failed*), and the subject with a body preview. The lists have skeleton loading, empty and error states, debounced Elasticsearch search, "Load more" pagination, and refresh in the background every 15 s.
+* Google login (`/login`) → dashboard. The sidebar shows the avatar, name, and email. The user menu holds Slack connect, the queue dashboard link, and Logout.
+* Scheduled and Sent tabs. Rows show *To*, a status chip (scheduled time, *Sent*, or *Failed*), and the subject with a body preview. The lists have skeleton loading, empty and error states, debounced Elasticsearch search, a status filter, "Load more" pagination, and refresh in the background every 15 s.
 * Compose:
   * From (sender picker) and To (chips, paste, or Upload List for CSV/TXT). Upload parses the file, shows how many addresses were detected, and skips duplicates.
   * Subject, *Delay between 2 emails*, *Hourly Limit*, and a rich-text editor.
   * Send Later popover: date-time picker plus the presets *Tomorrow*, *10 AM*, *11 AM* and *3 PM*. Done schedules the campaign.
-* Email detail: the sanitised HTML body, send metadata, attempts, rate-limit deferrals, and the Ethereal preview link.
+* Attachments: the paperclip adds up to 5 files (5 MB total). They are stored per campaign in Postgres and attached to every email of the campaign.
+* Email detail: the sanitised HTML body and attachment previews. The "to ..." dropdown shows status, send times, attempts, rate-limit deferrals, and the Ethereal preview link.
 
 ```
 frontend/src
@@ -206,4 +208,4 @@ backend/src
 └── lib/                    redis, elastic, mailer, logger, recipients
 ```
 
-> Note on the Figma: the design is followed as closely as possible: the "ONB" sidebar with a user card, Compose, the CORE section with Scheduled/Sent, a search bar, list rows with status chips, the compose form rows, and the Send Later popover. Additions that aren't in the design, such as the Slack card and the queue dashboard link, reuse the same visual language.
+> Note on the Figma: the design is followed as closely as possible: the "ONB" sidebar with a user card, Compose, the CORE section with Scheduled/Sent, a search bar, list rows with status chips, the compose form rows, and the Send Later popover. Things the design doesn't show, such as Slack connect and the queue dashboard link, live in the user menu so the layout stays the same.

@@ -92,12 +92,17 @@ async function processSendEmail(job: Job<JobState>, token?: string): Promise<str
   if (!sender) throw new Error(`Sender ${claimed.sender_id} not found`);
 
   try {
+    const attachments = await query<{ filename: string; contentType: string; content: Buffer }>(
+      'SELECT filename, content_type AS "contentType", content FROM attachments WHERE campaign_id = $1 ORDER BY id',
+      [claimed.campaign_id],
+    );
     const result = await sendMail(sender, {
       to: claimed.recipient,
       subject: claimed.subject,
       html: claimed.body,
       text: claimed.body.replace(/<[^>]*>/g, ''),
       messageId: `<email-${claimed.id}.c${claimed.campaign_id}@reachinbox.scheduler>`,
+      attachments,
     });
     await query(
       `UPDATE emails SET status = 'sent', sent_at = now(), locked_at = NULL, error = NULL,

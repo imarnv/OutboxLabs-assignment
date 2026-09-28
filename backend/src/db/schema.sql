@@ -61,6 +61,18 @@ CREATE TABLE IF NOT EXISTS emails (
 CREATE INDEX IF NOT EXISTS emails_user_status_sched_idx ON emails (user_id, status, scheduled_at);
 CREATE INDEX IF NOT EXISTS emails_status_sched_idx ON emails (status, scheduled_at);
 
+CREATE TABLE IF NOT EXISTS attachments (
+  id            SERIAL PRIMARY KEY,
+  campaign_id   INTEGER NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+  filename      TEXT NOT NULL,
+  content_type  TEXT NOT NULL,
+  size_bytes    INTEGER NOT NULL,
+  content       BYTEA NOT NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS attachments_campaign_idx ON attachments (campaign_id);
+
 CREATE TABLE IF NOT EXISTS slack_connections (
   user_id       INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
   team_id       TEXT,

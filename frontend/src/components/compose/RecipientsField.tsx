@@ -75,18 +75,27 @@ export function RecipientsField({ value, onChange }: { value: string[]; onChange
   const hidden = value.length - shown.length;
 
   return (
-    <div className="flex items-start gap-3">
-      <div className="flex min-h-8 flex-1 flex-wrap items-center gap-1.5">
+    <div className="flex items-center gap-3">
+      <div className="flex min-h-8 flex-1 flex-wrap items-center gap-1">
         {shown.map((email) => (
-          <span key={email} className="inline-flex items-center gap-1 rounded-full border border-brand/40 bg-white px-2.5 py-1 text-xs text-ink">
+          <span key={email} className="group inline-flex items-center gap-1 rounded-full border border-brand bg-brand-light px-2.5 py-0.5 text-sm text-ink">
             {email}
-            <button type="button" aria-label={`Remove ${email}`} onClick={() => onChange(value.filter((v) => v !== email))} className="text-ink-faint hover:text-ink">
+            <button
+              type="button"
+              aria-label={`Remove ${email}`}
+              onClick={() => onChange(value.filter((v) => v !== email))}
+              className="hidden text-ink-soft hover:text-ink group-hover:inline-flex"
+            >
               <XIcon size={12} />
             </button>
           </span>
         ))}
         {hidden > 0 && (
-          <button type="button" onClick={() => setExpanded(true)} className="rounded-full bg-brand-light px-2.5 py-1 text-xs font-medium text-brand">
+          <button
+            type="button"
+            onClick={() => setExpanded(true)}
+            className="rounded-full border border-brand bg-brand-light px-2.5 py-0.5 text-sm text-ink"
+          >
             +{hidden}
           </button>
         )}
@@ -106,16 +115,20 @@ export function RecipientsField({ value, onChange }: { value: string[]; onChange
           className="min-w-[160px] flex-1 bg-transparent py-1 text-sm text-ink placeholder:text-ink-faint outline-none"
         />
       </div>
-      <div className="flex shrink-0 flex-col items-end gap-0.5">
-        <button type="button" onClick={() => fileRef.current?.click()} className="inline-flex items-center gap-1.5 py-1 text-sm font-medium text-brand hover:underline">
-          <UploadIcon size={16} />
-          Upload List
-        </button>
+      <div className="flex shrink-0 items-center gap-3">
         {value.length > 0 && (
-          <span className="text-xs text-ink-soft" title={fileName ?? undefined}>
+          <span className="text-xs text-ink-faint" title={fileName ?? undefined}>
             {value.length} email{value.length === 1 ? '' : 's'} detected
           </span>
         )}
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          className="inline-flex items-center gap-1.5 py-1 text-[15px] text-brand hover:underline"
+        >
+          <UploadIcon size={16} />
+          Upload List
+        </button>
       </div>
       <input
         ref={fileRef}

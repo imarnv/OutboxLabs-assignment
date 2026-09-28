@@ -1,11 +1,12 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { FormRow } from '@/components/compose/FormRow';
 import { RecipientsField } from '@/components/compose/RecipientsField';
 import { RichTextEditor } from '@/components/compose/RichTextEditor';
 import { SendLaterPopover } from '@/components/compose/SendLaterPopover';
+import { AttachmentCard } from '@/components/emails/AttachmentCard';
 import { ArrowLeftIcon, ChevronDownIcon, ClockIcon, PaperclipIcon } from '@/components/icons';
 import { Button, IconButton } from '@/components/ui/Button';
 import { BareInput, BoxInput } from '@/components/ui/Input';
@@ -13,6 +14,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { useCounts } from '@/context/CountsContext';
 import { useToast } from '@/context/ToastContext';
 import { useAsync } from '@/hooks/useAsync';
+import { useAttachments } from '@/hooks/useAttachments';
 import { api } from '@/lib/api';
 import { formatChipTime } from '@/lib/format';
 
@@ -33,10 +35,10 @@ function validate(f: FormState): Errors {
   if (!f.recipients.length) e.recipients = 'Add recipients or upload a list';
   if (!f.subject.trim()) e.subject = 'Subject is required';
   if (!f.body.trim()) e.body = 'Write a message';
-  const delay = Number(f.delaySeconds);
-  if (!Number.isInteger(delay) || delay < 0) e.delaySeconds = 'Delay must be a whole number ≥ 0';
+  const delay = Number(f.delaySeconds || 0);
+  if (!Number.isInteger(delay) || delay < 0) e.delaySeconds = 'Delay must be a whole number of seconds';
   const limit = Number(f.hourlyLimit);
-  if (!Number.isInteger(limit) || limit < 1) e.hourlyLimit = 'Hourly limit must be ≥ 1';
+  if (!f.hourlyLimit || !Number.isInteger(limit) || limit < 1) e.hourlyLimit = 'Set an hourly limit of at least 1';
   return e;
 }
 
@@ -45,13 +47,15 @@ export default function ComposePage() {
   const toast = useToast();
   const { refreshCounts } = useCounts();
   const { data: senderData, loading: sendersLoading, error: sendersError } = useAsync(() => api.senders(), []);
+  const attachments = useAttachments(toast.error);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState<FormState>({
     senderId: null,
     recipients: [],
     subject: '',
     body: '',
-    delaySeconds: '5',
+    delaySeconds: '',
     hourlyLimit: '',
   });
   const [errors, setErrors] = useState<Errors>({});
@@ -60,11 +64,7 @@ export default function ComposePage() {
 
   useEffect(() => {
     if (!senderData) return;
-    setForm((f) => ({
-      ...f,
-      senderId: f.senderId ?? senderData.senders[0]?.id ?? null,
-      hourlyLimit: f.hourlyLimit || String(senderData.limits.maxEmailsPerHourPerSender),
-    }));
+    setForm((f) => ({ ...f, senderId: f.senderId ?? senderData.senders[0]?.id ?? null }));
   }, [senderData]);
 
   useEffect(() => {
@@ -96,12 +96,13 @@ export default function ComposePage() {
         body: form.body,
         recipients: form.recipients,
         startTime: start.toISOString(),
-        delayBetweenSeconds: Number(form.delaySeconds),
+        delayBetweenSeconds: Number(form.delaySeconds || 0),
         hourlyLimit: Number(form.hourlyLimit),
+        attachments: await attachments.serialize(),
       });
       toast.success(
         `Scheduled ${res.scheduled} email${res.scheduled === 1 ? '' : 's'}` +
-          (res.firstScheduledAt ? ` starting ${formatChipTime(res.firstScheduledAt)}` : '') +
+          (res.firstScheduledAt ? `, first at ${formatChipTime(res.firstScheduledAt)}` : '') +
           (res.lastScheduledAt && res.scheduled > 1 ? `, last at ${formatChipTime(res.lastScheduledAt)}` : '') +
           '.',
       );
@@ -114,60 +115,93 @@ export default function ComposePage() {
     }
   };
 
-  const limits = senderData?.limits;
+  const maxPerSender = senderData?.limits.maxEmailsPerHourPerSender;
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex items-center gap-3 px-6 py-4">
+      <header className="flex items-center gap-3 px-4 py-4">
         <IconButton label="Back" onClick={() => router.back()}>
           <ArrowLeftIcon size={20} />
         </IconButton>
-        <h1 className="text-lg font-semibold text-ink">Compose New Email</h1>
+        <h1 className="text-[22px] text-ink">Compose New Email</h1>
         <div className="ml-auto flex items-center gap-1">
-          <IconButton label="Attachments are not supported yet" disabled>
-            <PaperclipIcon size={18} />
+          <IconButton label="Attach files" className="relative" onClick={() => fileRef.current?.click()}>
+            <PaperclipIcon size={20} className="text-brand" />
+            {attachments.items.length > 0 && (
+              <span className="absolute bottom-1 right-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-surface-muted px-0.5 text-[9px] text-ink-soft">
+                {attachments.items.length}
+              </span>
+            )}
           </IconButton>
-          <IconButton label="Schedule" onClick={openSendLater}>
-            <ClockIcon size={18} />
+          <IconButton label="Pick send time" onClick={openSendLater}>
+            <ClockIcon size={20} className="text-brand" />
           </IconButton>
+          <div className="relative ml-2">
+            <Button variant="outline" size="sm" className="h-9 px-4" onClick={openSendLater} loading={submitting}>
+              Send Later
+            </Button>
+            <SendLaterPopover
+              open={sendLaterOpen}
+              onClose={() => setSendLaterOpen(false)}
+              onConfirm={(d) => void schedule(d)}
+              submitting={submitting}
+            />
+          </div>
+          <input
+            ref={fileRef}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              attachments.add(e.target.files);
+              e.target.value = '';
+            }}
+          />
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto px-6 pb-8">
-        <div className="mx-auto max-w-4xl rounded-2xl bg-white px-6 pb-6 sm:border sm:border-line sm:shadow-card">
-          <FormRow label="From" htmlFor="sender">
+      <div className="flex-1 overflow-y-auto px-6 pb-10">
+        <div className="mx-auto max-w-[1040px] pt-2">
+          <FormRow label="From" htmlFor="sender" underline={false}>
             {sendersLoading ? (
-              <Skeleton className="h-8 w-64 rounded-md" />
+              <Skeleton className="h-10 w-64 rounded-lg" />
             ) : (
-              <div className="relative inline-flex">
+              <div className="relative -ml-2 -my-2 inline-flex">
                 <select
                   id="sender"
                   value={form.senderId ?? ''}
                   onChange={(e) => set('senderId', Number(e.target.value))}
-                  className="h-8 appearance-none rounded-md bg-surface-muted pl-3 pr-9 text-sm text-ink outline-none focus:ring-2 focus:ring-brand/30"
+                  className="h-10 appearance-none rounded-lg bg-surface-muted pl-3 pr-9 text-[15px] text-ink outline-none focus:ring-2 focus:ring-brand/20"
                 >
                   {!senderData?.senders.length && <option value="">No senders available</option>}
                   {senderData?.senders.map((s) => (
                     <option key={s.id} value={s.id}>
-                      {s.name} &lt;{s.email}&gt;
+                      {s.email}
                     </option>
                   ))}
                 </select>
-                <ChevronDownIcon size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-ink-soft" />
+                <ChevronDownIcon size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-ink-faint" />
               </div>
             )}
           </FormRow>
 
-          <FormRow label="To" htmlFor="recipients" className={errors.recipients ? 'bg-red-50/40' : undefined}>
+          <FormRow label="To" htmlFor="recipients" invalid={Boolean(errors.recipients)}>
             <RecipientsField value={form.recipients} onChange={(v) => set('recipients', v)} />
           </FormRow>
 
-          <FormRow label="Subject" htmlFor="subject" className={errors.subject ? 'bg-red-50/40' : undefined}>
-            <BareInput id="subject" value={form.subject} onChange={(e) => set('subject', e.target.value)} placeholder="Subject" maxLength={500} />
+          <FormRow label="Subject" htmlFor="subject" invalid={Boolean(errors.subject)}>
+            <BareInput
+              id="subject"
+              value={form.subject}
+              onChange={(e) => set('subject', e.target.value)}
+              placeholder="Subject"
+              maxLength={500}
+              className="text-[15px]"
+            />
           </FormRow>
 
-          <div className="flex flex-wrap items-center gap-x-10 gap-y-3 border-b border-line py-3">
-            <label className="flex items-center gap-3 text-sm text-ink-soft">
+          <div className="flex flex-wrap items-center gap-x-7 gap-y-3 py-3">
+            <label className="flex items-center gap-3 text-sm text-ink" title="Seconds between two emails">
               Delay between 2 emails
               <BoxInput
                 type="number"
@@ -176,12 +210,15 @@ export default function ComposePage() {
                 value={form.delaySeconds}
                 onChange={(e) => set('delaySeconds', e.target.value)}
                 placeholder="00"
+                aria-label="Delay between 2 emails in seconds"
                 aria-invalid={Boolean(errors.delaySeconds)}
                 className={errors.delaySeconds ? 'border-red-300' : undefined}
               />
-              <span className="text-xs text-ink-faint">sec</span>
             </label>
-            <label className="flex items-center gap-3 text-sm text-ink-soft">
+            <label
+              className="flex items-center gap-1.5 text-sm text-ink"
+              title={maxPerSender ? `The server also caps each sender at ${maxPerSender}/hour` : undefined}
+            >
               Hourly Limit
               <BoxInput
                 type="number"
@@ -194,26 +231,30 @@ export default function ComposePage() {
                 className={errors.hourlyLimit ? 'border-red-300' : undefined}
               />
             </label>
-            {limits && (
-              <p className="text-xs text-ink-faint">
-                Server caps: {limits.maxEmailsPerHourPerSender}/hr per sender · min {limits.minDelayBetweenSendsMs / 1000}s between
-                sends
-              </p>
-            )}
           </div>
 
-          <div className="pt-5">
-            <RichTextEditor value={form.body} onChange={(html) => set('body', html)} placeholder="Type your reply..." invalid={Boolean(errors.body)} />
+          <div className="pt-2">
+            <RichTextEditor
+              value={form.body}
+              onChange={(html) => set('body', html)}
+              placeholder="Type Your Reply..."
+              invalid={Boolean(errors.body)}
+            />
           </div>
 
-          <div className="mt-6 flex justify-end">
-            <div className="relative">
-              <Button variant="outline" size="lg" className="min-w-[160px]" onClick={openSendLater} loading={submitting}>
-                Send Later
-              </Button>
-              <SendLaterPopover open={sendLaterOpen} onClose={() => setSendLaterOpen(false)} onConfirm={(d) => void schedule(d)} submitting={submitting} />
+          {attachments.items.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-4">
+              {attachments.items.map((a) => (
+                <AttachmentCard
+                  key={a.id}
+                  name={a.file.name}
+                  size={a.file.size}
+                  previewUrl={a.previewUrl}
+                  onRemove={() => attachments.remove(a.id)}
+                />
+              ))}
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

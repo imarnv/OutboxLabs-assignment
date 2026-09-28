@@ -10,9 +10,9 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { useCounts } from '@/context/CountsContext';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useEmailList } from '@/hooks/useEmailList';
-import type { EmailTab } from '@/lib/types';
+import type { EmailStatus, EmailTab } from '@/lib/types';
 import { EmailRow } from './EmailRow';
-import { EmailToolbar } from './EmailToolbar';
+import { EmailToolbar, type FilterOption } from './EmailToolbar';
 
 const EMPTY_COPY: Record<EmailTab, { title: string; description: string }> = {
   scheduled: {
@@ -25,13 +25,26 @@ const EMPTY_COPY: Record<EmailTab, { title: string; description: string }> = {
   },
 };
 
+const FILTERS: Record<EmailTab, FilterOption[]> = {
+  scheduled: [
+    { value: undefined, label: 'All' },
+    { value: 'scheduled', label: 'Scheduled' },
+    { value: 'sending', label: 'Sending' },
+  ],
+  sent: [
+    { value: undefined, label: 'All' },
+    { value: 'sent', label: 'Sent' },
+    { value: 'failed', label: 'Failed' },
+  ],
+};
+
 function ListSkeleton() {
   return (
-    <ul aria-busy="true">
+    <ul aria-busy="true" className="px-4">
       {Array.from({ length: 8 }).map((_, i) => (
         <li key={i} className="flex items-center gap-4 border-b border-line px-6 py-4">
-          <Skeleton className="h-4 w-[200px]" />
-          <Skeleton className="h-5 w-24 rounded-full" />
+          <Skeleton className="h-4 w-[180px]" />
+          <Skeleton className="h-5 w-28 rounded-full" />
           <Skeleton className="h-4 flex-1" />
         </li>
       ))}
@@ -41,8 +54,9 @@ function ListSkeleton() {
 
 export function EmailListView({ tab }: { tab: EmailTab }) {
   const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<EmailStatus | undefined>();
   const debounced = useDebounce(query, 300);
-  const { items, total, loading, loadingMore, error, hasMore, refresh, loadMore } = useEmailList(tab, debounced);
+  const { items, total, loading, loadingMore, error, hasMore, refresh, loadMore } = useEmailList(tab, debounced, filter);
   const { refreshCounts } = useCounts();
 
   const onRefresh = () => {
@@ -53,8 +67,8 @@ export function EmailListView({ tab }: { tab: EmailTab }) {
   let content;
   if (loading && items.length === 0) content = <ListSkeleton />;
   else if (error && items.length === 0) content = <ErrorState message={error} onRetry={onRefresh} />;
-  else if (items.length === 0 && debounced)
-    content = <EmptyState title="No matching emails" description={`Nothing in ${tab} matches “${debounced}”.`} />;
+  else if (items.length === 0 && (debounced || filter))
+    content = <EmptyState title="No matching emails" description="Try a different search or filter." />;
   else if (items.length === 0)
     content = (
       <EmptyState
@@ -74,7 +88,7 @@ export function EmailListView({ tab }: { tab: EmailTab }) {
   else
     content = (
       <>
-        <ul>
+        <ul className="px-4">
           {items.map((email) => (
             <EmailRow key={email.id} email={email} />
           ))}
@@ -91,7 +105,15 @@ export function EmailListView({ tab }: { tab: EmailTab }) {
 
   return (
     <div className="flex h-full flex-col">
-      <EmailToolbar query={query} onQueryChange={setQuery} onRefresh={onRefresh} refreshing={loading && items.length > 0} total={total} />
+      <EmailToolbar
+        query={query}
+        onQueryChange={setQuery}
+        filter={filter}
+        filterOptions={FILTERS[tab]}
+        onFilterChange={setFilter}
+        onRefresh={onRefresh}
+        refreshing={loading && items.length > 0}
+      />
       <div className="flex-1 overflow-y-auto">{content}</div>
     </div>
   );

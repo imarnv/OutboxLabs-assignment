@@ -2,6 +2,7 @@ import type {
   EmailCounts,
   EmailDetail,
   EmailListItem,
+  EmailStatus,
   EmailTab,
   Paginated,
   ScheduleRequest,
@@ -47,15 +48,18 @@ export const api = {
 
   senders: () => request<SendersResponse>('/senders'),
 
-  listEmails: (tab: EmailTab, params: { q?: string; page?: number; pageSize?: number } = {}) => {
+  listEmails: (tab: EmailTab, params: { q?: string; filter?: EmailStatus; page?: number; pageSize?: number } = {}) => {
     const qs = new URLSearchParams({ status: tab });
     if (params.q) qs.set('q', params.q);
+    if (params.filter) qs.set('filter', params.filter);
     if (params.page) qs.set('page', String(params.page));
     if (params.pageSize) qs.set('pageSize', String(params.pageSize));
     return request<Paginated<EmailListItem>>(`/emails?${qs.toString()}`);
   },
   emailCounts: () => request<EmailCounts>('/emails/counts'),
   getEmail: (id: string) => request<EmailDetail>(`/emails/${encodeURIComponent(id)}`),
+  attachmentUrl: (emailId: string, attachmentId: number) =>
+    `/api/emails/${encodeURIComponent(emailId)}/attachments/${attachmentId}`,
   schedule: (body: ScheduleRequest) =>
     request<ScheduleResponse>('/emails/schedule', { method: 'POST', body: JSON.stringify(body) }),
 

@@ -26,7 +26,14 @@ export interface SendResult {
 
 export async function sendMail(
   sender: SenderRow,
-  msg: { to: string; subject: string; html: string; text: string; messageId: string },
+  msg: {
+    to: string;
+    subject: string;
+    html: string;
+    text: string;
+    messageId: string;
+    attachments?: { filename: string; contentType: string; content: Buffer }[];
+  },
 ): Promise<SendResult> {
   const info = await getTransporter(sender).sendMail({
     from: { name: sender.name, address: sender.email },
@@ -35,6 +42,7 @@ export async function sendMail(
     html: msg.html,
     text: msg.text,
     messageId: msg.messageId,
+    attachments: msg.attachments,
   });
   const preview = nodemailer.getTestMessageUrl(info);
   return { messageId: info.messageId ?? msg.messageId, previewUrl: preview || null };

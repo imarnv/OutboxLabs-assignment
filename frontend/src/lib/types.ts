@@ -46,6 +46,7 @@ export interface EmailDetail extends EmailListItem {
   messageId: string | null;
   attempts: number;
   rateLimitedCount: number;
+  attachments: AttachmentMeta[];
 }
 
 export interface Paginated<T> {
@@ -65,6 +66,20 @@ export interface ScheduleRequest {
   startTime: string;
   delayBetweenSeconds: number;
   hourlyLimit: number;
+  attachments: AttachmentUpload[];
+}
+
+export interface AttachmentUpload {
+  filename: string;
+  contentType: string;
+  contentBase64: string;
+}
+
+export interface AttachmentMeta {
+  id: number;
+  filename: string;
+  contentType: string;
+  size: number;
 }
 
 export interface ScheduleResponse {

@@ -55,7 +55,11 @@ export const ListIcon = make(<><path d="M9 6h12" /><path d="M9 12h12" /><path d=
 export const ListOrderedIcon = make(<><path d="M10 6h11" /><path d="M10 12h11" /><path d="M10 18h11" /><path d="M4 6h1v4" /><path d="M4 10h2" /><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1" /></>, 'ListOrderedIcon');
 export const QuoteIcon = make(<><path d="M3 21c3 0 7-1 7-8V5H3v7h4" /><path d="M14 21c3 0 7-1 7-8V5h-7v7h4" /></>, 'QuoteIcon');
 export const StrikeIcon = make(<><path d="M16 4H9a3 3 0 0 0-2.8 4" /><path d="M14 12a4 4 0 0 1 0 8H6" /><path d="M4 12h16" /></>, 'StrikeIcon');
-export const TypeIcon = make(<><path d="M4 7V4h16v3" /><path d="M9 20h6" /><path d="M12 4v16" /></>, 'TypeIcon');
+export const IndentIcon = make(<><path d="M3 8l4 4-4 4" /><path d="M11 6h10" /><path d="M11 12h10" /><path d="M11 18h10" /></>, 'IndentIcon');
+export const OutdentIcon = make(<><path d="M7 8l-4 4 4 4" /><path d="M11 6h10" /><path d="M11 12h10" /><path d="M11 18h10" /></>, 'OutdentIcon');
+export const ChevronsUpDownIcon = make(<><path d="m7 9 5-5 5 5" /><path d="m7 15 5 5 5-5" /></>, 'ChevronsUpDownIcon');
+export const ParagraphIcon = make(<><path d="M4 3v18" /><rect x="8" y="6" width="8" height="4" rx="1" /><rect x="8" y="14" width="12" height="4" rx="1" /></>, 'ParagraphIcon');
+export const TypeIcon = make(<><path d="M2 7V5h11v2" /><path d="M7.5 5v14" /><path d="M5.5 19h4" /><path d="M13 11v-1h9v1" /><path d="M17.5 10v9" /><path d="M16 19h3" /></>, 'TypeIcon');
 
 export function GoogleIcon({ size = 18 }: { size?: number }) {
   return (

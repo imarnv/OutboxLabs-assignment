@@ -22,6 +22,20 @@ export interface ScheduleInput {
   startTime: Date;
   delayBetweenMs: number;
   hourlyLimit: number;
+  attachments: AttachmentInput[];
+}
+
+export interface AttachmentInput {
+  filename: string;
+  contentType: string;
+  content: Buffer;
+}
+
+export interface AttachmentMeta {
+  id: number;
+  filename: string;
+  contentType: string;
+  size: number;
 }
 
 export interface ScheduleResult {
@@ -57,6 +71,12 @@ export async function scheduleCampaign(userId: number, input: ScheduleInput): Pr
        RETURNING id, scheduled_at`,
       [campaign.id, userId, sender.id, input.subject, input.body, valid, slots.map((s) => new Date(s))],
     );
+    for (const a of input.attachments) {
+      await client.query(
+        `INSERT INTO attachments (campaign_id, filename, content_type, size_bytes, content) VALUES ($1,$2,$3,$4,$5)`,
+        [campaign.id, a.filename, a.contentType, a.content.length, a.content],
+      );
+    }
     return { campaign, emails: e.rows };
   });
 
@@ -106,6 +126,7 @@ export interface EmailDetail extends EmailListItem {
   messageId: string | null;
   attempts: number;
   rateLimitedCount: number;
+  attachments: AttachmentMeta[];
 }
 
 type EmailJoinRow = EmailRow & { sender_email: string; sender_name: string };
@@ -136,9 +157,9 @@ const SELECT_JOIN = `SELECT e.*, s.email AS sender_email, s.name AS sender_name
 export async function listEmails(
   userId: number,
   tab: EmailTab,
-  opts: { q?: string; page: number; pageSize: number },
+  opts: { q?: string; status?: EmailStatus; page: number; pageSize: number },
 ): Promise<{ items: EmailListItem[]; total: number; page: number; pageSize: number }> {
-  const statuses = TAB_STATUSES[tab];
+  const statuses = opts.status && TAB_STATUSES[tab].includes(opts.status) ? [opts.status] : TAB_STATUSES[tab];
   const order =
     tab === 'scheduled' ? 'e.scheduled_at ASC, e.id ASC' : 'COALESCE(e.sent_at, e.failed_at, e.updated_at) DESC, e.id DESC';
   const offset = (opts.page - 1) * opts.pageSize;
@@ -192,6 +213,10 @@ export async function getEmail(userId: number, id: string): Promise<EmailDetail 
   if (!/^\d+$/.test(id)) return null;
   const r = await queryOne<EmailJoinRow>(`${SELECT_JOIN} WHERE e.id = $1 AND e.user_id = $2`, [id, userId]);
   if (!r) return null;
+  const attachments = await query<AttachmentMeta>(
+    `SELECT id, filename, content_type AS "contentType", size_bytes AS size FROM attachments WHERE campaign_id = $1 ORDER BY id`,
+    [r.campaign_id],
+  );
   return {
     ...toListItem(r),
     body: r.body,
@@ -199,7 +224,22 @@ export async function getEmail(userId: number, id: string): Promise<EmailDetail 
     messageId: r.message_id,
     attempts: r.attempts,
     rateLimitedCount: r.rate_limited_count,
+    attachments,
   };
+}
+
+export async function getAttachment(
+  userId: number,
+  emailId: string,
+  attachmentId: string,
+): Promise<{ filename: string; content_type: string; content: Buffer } | null> {
+  if (!/^\d+$/.test(emailId) || !/^\d+$/.test(attachmentId)) return null;
+  return queryOne(
+    `SELECT a.filename, a.content_type, a.content
+     FROM attachments a JOIN emails e ON e.campaign_id = a.campaign_id
+     WHERE a.id = $1 AND e.id = $2 AND e.user_id = $3`,
+    [attachmentId, emailId, userId],
+  );
 }
 
 // Makes sure every pending email has a job. Normally a no-op; covers Redis data loss and

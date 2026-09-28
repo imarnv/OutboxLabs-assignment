@@ -31,7 +31,7 @@ export function createApp() {
   app.set('trust proxy', 1);
   app.use(cors({ origin: config.frontendUrl, credentials: true }));
   app.use(cookieParser());
-  app.use(express.json({ limit: '5mb' }));
+  app.use(express.json({ limit: '10mb' }));
 
   const boardAdapter = new ExpressAdapter();
   boardAdapter.setBasePath(config.bullBoard.path);

@@ -54,7 +54,7 @@ export function SendLaterPopover({
   };
 
   return (
-    <Popover open={open} onClose={onClose} placement="top" className="w-[320px] p-5">
+    <Popover open={open} onClose={onClose} placement="bottom" className="w-[320px] p-5">
       <h3 className="mb-3 text-base font-semibold text-ink">Send Later</h3>
       <input
         type="datetime-local"

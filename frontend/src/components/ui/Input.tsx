@@ -54,7 +54,7 @@ export const BoxInput = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInp
     <input
       ref={ref}
       className={clsx(
-        'h-9 w-20 rounded-md border border-line bg-white px-3 text-center text-sm text-ink outline-none focus:border-brand',
+        'h-10 w-[70px] rounded-lg border border-line bg-white px-2.5 text-sm text-ink placeholder:text-ink-faint outline-none focus:border-brand [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none',
         className,
       )}
       {...rest}

@@ -17,18 +17,15 @@ export function EmailRow({ email }: { email: EmailListItem }) {
       <Link
         href={`/dashboard/email/${email.id}`}
         title={timeLabel}
-        className="group flex items-center gap-4 border-b border-line px-6 py-4 transition hover:bg-surface"
+        className="group flex items-center gap-3 border-b border-line px-6 py-4 transition hover:bg-surface"
       >
-        <div className="w-[220px] shrink-0 truncate text-sm text-ink">
-          <span className="text-ink-soft">To: </span>
-          {email.recipient}
-        </div>
+        <div className="w-[200px] shrink-0 truncate text-sm text-ink">To: {email.recipient}</div>
         <StatusBadge email={email} />
         <div className="min-w-0 flex-1 truncate text-sm">
-          <span className="font-semibold text-ink">{email.subject}</span>
-          {email.bodyPreview && <span className="text-ink-soft"> - {email.bodyPreview}</span>}
+          <span className="font-medium text-ink">{email.subject}</span>
+          {email.bodyPreview && <span className="text-ink-faint"> - {email.bodyPreview}</span>}
         </div>
-        <StarIcon size={18} className="shrink-0 text-ink-faint group-hover:text-ink-soft" />
+        <StarIcon size={16} className="ml-4 shrink-0 text-ink-faint group-hover:text-ink-soft" />
       </Link>
     </li>
   );
